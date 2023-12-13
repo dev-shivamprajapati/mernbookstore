@@ -3,9 +3,9 @@ import mongoose from "mongoose";
 import cors from "cors";
 // Config
 import { config } from "./config.js";
-
 // Routes
 import BookRoutes from "./routes/booksRoutes.js";
+import UserRoutes from "./routes/userRoutes.js";
 
 const { PORT, MONGODB_URL } = config;
 const app = express();
@@ -31,6 +31,9 @@ app.get("/", (request, respone) => {
 });
 // Middleware to redirect books APIs into books routes
 app.use("/books", BookRoutes);
+
+// Middleware to redirect books APIs into books routes
+app.use("/users", UserRoutes);
 
 // MONGO DB
 mongoose
