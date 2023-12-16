@@ -1,6 +1,11 @@
 import express from "express";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { UserModel } from "../models/userModel.js";
+import { config } from "../config.js";
 const router = express.Router();
+
+const { SECRET_KEY } = config;
 
 // GET ALL BOOKS
 
@@ -12,20 +17,26 @@ const router = express.Router();
 //     console.log({ err });
 //   }
 // });
-// GET A BOOK BY ID
-// router.get("/:id", async (request, respone) => {
-//   try {
-//     const {
-//       params: { id },
-//     } = request;
-//     const book = await UserModel.findById({ _id: id });
-//     return respone.status(200).send(book);
-//   } catch (err) {
-//     console.log({ err });
-//   }
-// });
-// ADD A BOOK
-router.post("", async (req, response) => {
+
+// GET A USER BY TOKEN
+router.post("", async (request, respone) => {
+  try {
+    const {
+      body: { token },
+    } = request;
+    const { userId } = jwt.verify(token, SECRET_KEY);
+
+    const user = await UserModel.findById({ _id: userId });
+
+    if (user) return respone.status(200).send(user);
+    else respone.status(404).send("User not found");
+  } catch (err) {
+    console.log({ err });
+  }
+});
+
+// ADD A USER
+router.post("/register", async (req, response) => {
   try {
     const {
       body: { name, email, password },
@@ -35,12 +46,37 @@ router.post("", async (req, response) => {
         .status(400)
         .send("Send all required fields, name, email & password");
     } else {
-      const newUser = { name, email, password };
+      const hashedPass = await bcrypt.hash(password, 12);
+      const newUser = { name, email, password: hashedPass };
       const user = await UserModel.create(newUser);
       return response.status(200).send(user);
     }
   } catch (err) {
     console.log("Error in adding a user", { err });
+  }
+});
+
+// LOGIN USER
+router.post("/login", async (req, response) => {
+  try {
+    const {
+      body: { email, password },
+    } = req;
+    if (!email || !password) {
+      return response.status(400).send("Send all required  email & password");
+    } else {
+      const userData = await UserModel.findOne({ email });
+      const isPassCorrect = await bcrypt.compare(password, userData?.password);
+      if (isPassCorrect) {
+        const token = jwt.sign({ userId: userData?.["_id"] }, SECRET_KEY, {
+          expiresIn: "24h",
+        });
+
+        return response.status(200).send({ status: "Login successful", token });
+      } else response.status(401).send("Invalid creds");
+    }
+  } catch (err) {
+    console.log("Error in logging a user", { err });
   }
 });
 
